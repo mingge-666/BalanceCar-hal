@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -29,6 +30,7 @@
 #include "MPU6050.h"
 #include "Tasks.h"
 #include "PID.h"
+#include "Key.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,7 +51,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern uint8_t BlueSerial_RxData;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,6 +63,23 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 	uint8_t RunState = 0;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	static uint8_t Time_Speed = 0,Time_Location = 0;
+	if(htim == &htim1){
+		Time_Speed++;
+		Time_Location++;
+		Key_Tick();
+		if(Time_Speed >= 10){
+			Time_Speed = 0;
+			Get_Data();
+			Angle_Task();
+		}
+		if(Time_Location >= 50){
+			Time_Location = 0;
+			Position_Task();
+		}
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -95,7 +114,10 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_TIM1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim1);
 	OLED_Init();
 	MPU6050_Init();
 	HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
@@ -103,14 +125,14 @@ int main(void)
 	
 	HAL_TIM_Encoder_Start(&htim3,TIM_CHANNEL_ALL);
 	HAL_TIM_Encoder_Start(&htim4,TIM_CHANNEL_ALL);
-	
-	
-	
+	HAL_UART_Receive_IT(&huart2, &BlueSerial_RxData, 1);
+	HAL_UART_Transmit(&huart2, (uint8_t*)"Hello\r\n", 7, 100);
 	
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  
   while (1)
   {
 	  uint8_t temp_state = Get_KeyNum();
@@ -126,6 +148,7 @@ int main(void)
 	if(RunState){HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,GPIO_PIN_RESET);}
 	else{HAL_GPIO_WritePin(GPIOC,GPIO_PIN_13,GPIO_PIN_SET);}
 	OLED_Task();
+	BlueTooth_Control();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

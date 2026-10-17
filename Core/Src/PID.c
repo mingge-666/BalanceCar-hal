@@ -31,8 +31,8 @@ void PID_Update(PID_t *p){
 	
 	p->Out = p->Kp*p->Error0 + p->Ki * p->ErrorInt - p->Kd * (p->Actual-p->Actual1);
 	
-	if(p->Out > 0){p->Out += p->offset;}//积分偏移
-	if(p->Out < 0){p->Out -= p->offset;}
+	if(p->Out > 0.2){p->Out += p->offset;}//积分偏移
+	if(p->Out < 0.2){p->Out -= p->offset;}
 	
 	if(p->Out > p->OutMax){p->Out = p->OutMax;}
 	if(p->Out < p->OutMin){p->Out = p->OutMin;}
