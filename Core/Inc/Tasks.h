@@ -10,6 +10,7 @@ void Position_Task(void);
 void Get_Data(void);
 void OLED_Task(void);
 void Stop_Task(void);
+void BlueTooth_Control(void);
 
 #endif
 

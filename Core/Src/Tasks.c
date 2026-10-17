@@ -5,6 +5,9 @@
 #include "Encoder.h"
 #include "OLED.h"
 #include "main.h"
+#include "BlueSerial.h"
+#include <string.h>
+#include <stdlib.h>
 
 void Stop_Task(void);
 extern uint8_t RunState;
@@ -17,19 +20,19 @@ PID_t AnglePID = {
 	
 	.OutMax = 80,
 	.OutMin = -80,
-	.ErrorIntMax = 150,	
-	.ErrorIntMin = -150,
+	.ErrorIntMax = 350,	
+	.ErrorIntMin = -350,
 	.offset = 3.5,
 };
 
 PID_t SpeedPID = {
-	.Kp = 2.5,
-	.Ki = 0.07,
-	.Kd = 0.05,
+	.Kp = 2,
+	.Ki = 0.06,
+	.Kd = 0,
 	.ErrorIntMax = 150,
 	.ErrorIntMin = -150,
-	.OutMax = 40,
-	.OutMin = -40,
+	.OutMax = 25,
+	.OutMin = -25,
 };
 
 PID_t TurnPID = {
@@ -39,8 +42,8 @@ PID_t TurnPID = {
 	
 	.OutMax = 50,
 	.OutMin = -50,
-	.ErrorIntMax = 20,
-	.ErrorIntMin = -20,
+	.ErrorIntMax = 30,
+	.ErrorIntMin = -30,
 };
 
 int16_t GX,GY,GZ,AX,AY,AZ;
@@ -72,6 +75,9 @@ void Get_Data(void){
 }
 
 void Angle_Task(void){
+	if(AnglePID.Out>=15){
+		OLED_Printf(0, 0, OLED_6X8, "1");	
+	}
 	if(RunState){
 		AnglePID.Actual = Angle;
 		PID_Update(&AnglePID);
@@ -91,6 +97,9 @@ void Angle_Task(void){
 }
 
 void Position_Task(void){
+	if(SpeedPID.Out>=15){
+		OLED_Printf(0, 0, OLED_6X8, "2");	
+	}
 	if(RunState){
 		LeftSpeed = Get_Speed(1)/ 44.0 / 0.05 / 9.27666;
 		RightSpeed = -Get_Speed(2)/ 44.0 / 0.05 / 9.27666;
@@ -111,7 +120,7 @@ void OLED_Task(void){
 	OLED_Clear();
 	//X:0-88列；Y：0-48行；每行相差8
 	
-	OLED_Printf(0, 0, OLED_6X8, "  Angle");						
+	OLED_Printf(12, 0, OLED_6X8, "Angle");						
 	OLED_Printf(0, 8, OLED_6X8, "P:%05.2f", AnglePID.Error0);		
 	OLED_Printf(0, 16, OLED_6X8, "I:%05.2f", AnglePID.ErrorInt);		
 	OLED_Printf(0, 24, OLED_6X8, "D:%05.2f", (AnglePID.Actual-AnglePID.Actual1));	
@@ -150,6 +159,80 @@ void Stop_Task(void){
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
+}
+
+void BlueTooth_Control(void){
+			if (BlueSerial_RxFlag == 1)		//如果收到数据包
+		{
+			char *Tag = strtok(BlueSerial_RxPacket, ",");	//提取数据1，定义为标签Tag
+			if (strcmp(Tag, "key") == 0)					//Tag为key，收到按键数据包
+			{
+				char *Name = strtok(NULL, ",");				//提取数据2，定义为按键名称
+				char *Action = strtok(NULL, ",");			//提取数据3，定义为按键动作
+				
+				/*此处可执行按键操作，目前程序暂时没用到按键*/
+			}
+			else if (strcmp(Tag, "slider") == 0)			//Tag为slider，收到滑杆数据包
+			{
+				char *Name = strtok(NULL, ",");				//提取数据2，定义为滑杆名称
+				char *Value = strtok(NULL, ",");			//提取数据3，定义为滑杆值
+				
+				/*执行滑杆操作*/
+				if (strcmp(Name, "AngleKp") == 0)			//如果滑杆名称是AngleKp
+				{
+					AnglePID.Kp = atof(Value);				//则把滑杆值赋值给角度环Kp
+				}
+				else if (strcmp(Name, "AngleKi") == 0)		//如果滑杆名称是AngleKi
+				{
+					AnglePID.Ki = atof(Value);				//则把滑杆值赋值给角度环Ki
+				}
+				else if (strcmp(Name, "AngleKd") == 0)		//如果滑杆名称是AngleKd
+				{
+					AnglePID.Kd = atof(Value);				//则把滑杆值赋值给角度环Kd
+				}
+				else if (strcmp(Name, "SpeedKp") == 0)		//如果滑杆名称是SpeedKp
+				{
+					SpeedPID.Kp = atof(Value);				//则把滑杆值赋值给速度环Kp
+				}
+				else if (strcmp(Name, "SpeedKi") == 0)		//如果滑杆名称是SpeedKi
+				{
+					SpeedPID.Ki = atof(Value);				//则把滑杆值赋值给速度环Ki
+				}
+				else if (strcmp(Name, "SpeedKd") == 0)		//如果滑杆名称是SpeedKd
+				{
+					SpeedPID.Kd = atof(Value);				//则把滑杆值赋值给速度环Kd
+				}
+				else if (strcmp(Name, "TurnKp") == 0)		//如果滑杆名称是TurnKp
+				{
+					TurnPID.Kp = atof(Value);				//则把滑杆值赋值给转向环Kp
+				}
+				else if (strcmp(Name, "TurnKi") == 0)		//如果滑杆名称是TurnKi
+				{
+					TurnPID.Ki = atof(Value);				//则把滑杆值赋值给转向环Ki
+				}
+				else if (strcmp(Name, "TurnKd") == 0)		//如果滑杆名称是TurnKd
+				{
+					TurnPID.Kd = atof(Value);				//则把滑杆值赋值给转向环Kd
+				}
+				else if (strcmp(Name, "Offset") == 0)		//如果滑杆名称是Offset
+				{
+					AnglePID.offset = atof(Value);		//则把滑杆值赋值给OutOffset
+				}
+			}
+			else if (strcmp(Tag, "joystick") == 0)			
+			{
+				int8_t LH = atoi(strtok(NULL, ","));		
+				int8_t LV = atoi(strtok(NULL, ","));	
+				int8_t RH = atoi(strtok(NULL, ","));		
+				int8_t RV = atoi(strtok(NULL, ","));	
+				
+				/*执行摇杆操作*/
+				SpeedPID.Target = LV / 25.0;	
+				TurnPID.Target = RH / 25.0;	
+			}
+			
+			BlueSerial_RxFlag = 0;	
+		}
 }
 
 
